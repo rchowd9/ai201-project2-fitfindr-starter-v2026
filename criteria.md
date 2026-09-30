@@ -24,7 +24,9 @@ data earns credit; *"80% seemed reasonable"* does not.
 Given a query that matches at least one listing, the agent completes all three
 tool calls and returns a fit card — in at least 4 of 5 tries.
 
-**Why this target:**
+**Why this target:** I picked 4 of 5 because my search is a plain keyword match against title and description strings, so complex query phrasings or subtle synonym variations will occasionally miss matching listings.
+
+
 <!-- Why 4 of 5 and not 5 of 5? Something about your search, probably —
      "my search is a plain keyword match and some phrasings will miss" is a
      real answer. -->
@@ -36,13 +38,19 @@ tool calls and returns a fit card — in at least 4 of 5 tries.
 Given a query that matches no listings, the agent stops before calling
 `suggest_outfit` and returns a message naming what to change — 5 of 5 tries.
 
-**Why this target:**
+**Why this target:** I picked 4 of 5 because style tag matching relies on overlapping string tags across dataset items, which occasionally leads to sparse matches when listings use non-standard style tags.
+
+
 <!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
      about this path? -->
 
 ---
 
 ## 3. Something about state
+
+State Consistency: When suggest_outfit receives a listing ID from the search step, the id field of listing in the resulting outfit payload must exactly equal the id returned by search_listings.
+
+Target: 5 of 5
 
 <!-- YOU WRITE THIS ONE.
 
@@ -56,13 +64,17 @@ Given a query that matches no listings, the agent stops before calling
 
 
 
-**Why this target:**
+**Why this target:** I picked 5 of 5 because passing the exact id from search_listings into suggest_outfit is pure deterministic variable passing in Python and should never fail regardless of model phrasing or search contents.
 
 
 
 ---
 
 ## 4. Something about the fit card
+
+Fit Card Semantic Stability: Given the exact same outfit input, calling create_fit_card must produce output containing the same key facts (listing title, wardrobe item name, total price, and platform) regardless of word choice phrasing variations from the model.
+
+Target: 4 of 5
 
 <!-- YOU WRITE THIS ONE.
 
@@ -77,13 +89,17 @@ Given a query that matches no listings, the agent stops before calling
 
 
 
-**Why this target:**
+**Why this target:** I picked 4 of 5 because create_fit_card calls an LLM, and non-zero temperature generation occasionally leads to minor formatting drops or missing key fields on isolated runs.
 
 
 
 ---
 
 ## 5. Your choice
+
+Price Ceiling Hard Enforcement: No listing returned by search_listings may have a price strictly greater than the max_price parameter passed into the function.
+
+Target: 5 of 5
 
 <!-- YOU WRITE THIS ONE TOO.
 
@@ -94,7 +110,7 @@ Given a query that matches no listings, the agent stops before calling
 
 
 
-**Why this target:**
+**Why this target:** I picked 5 of 5 because price filtering is a strict numerical check (listing['price'] <= max_price) executed directly in Python code before results are returned, which must hold true 100% of the time.
 
 
 
