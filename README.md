@@ -95,13 +95,13 @@ If search_listings returns an empty list, put a message in the session and stop.
      The grader checks your code against what you claim here, so the file and
      function have to be real. -->
 
-**Branch rule:**
+**Branch rule:** If `search_listings` returns an empty list, put a helpful error message in `session["error"]` explaining what filter (price ceiling, size, or keywords) the user could adjust, and stop. Otherwise, store the search results in `session["search_results"]`, select the first result into `session["selected_item"]`, pass that item from the session into `suggest_outfit`, and store the result in `session["outfit_suggestion"]` before moving to `create_fit_card`.
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** <!-- regex, string splitting, or asking the model — say which -->
+**How the query is parsed:** Regular expressions (regex) with string cleaning to extract dollar amounts for `max_price`, size tokens for `size`, and clean remaining search keywords for `description`.
 
-**What moves through the session:** <!-- which fields, in what order -->
+**What moves through the session:** `query` (str) -> `parsed` (dict) -> `search_results` (list[dict]) -> `selected_item` (dict) -> `outfit_suggestion` (str) -> `fit_card` (str) <!-- which fields, in what order -->
 
 ---
 

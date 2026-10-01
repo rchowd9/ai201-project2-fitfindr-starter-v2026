@@ -13,6 +13,7 @@ Build and test your three tools in `tools.py` first. Then come here.
     python agent.py          runs both example paths below
 """
 
+import re
 import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
@@ -27,13 +28,6 @@ def new_session(query: str, wardrobe: dict) -> dict:
 
     The session is the single source of truth for a run. Every tool result goes
     in here, and the next tool reads it back out.
-
-    You could pass values straight from one call to the next. It would work,
-    and you would not be able to test it — you can't print a variable you have
-    already overwritten. Going through the session is what makes the state
-    visible, and unit 4 has you write a criterion about exactly that.
-
-    Add fields if you need them.
     """
     return {
         "query": query,              # what the user typed
@@ -47,68 +41,109 @@ def new_session(query: str, wardrobe: dict) -> dict:
     }
 
 
+# ── query parsing ─────────────────────────────────────────────────────────────
+
+def _parse_query(query: str) -> dict:
+    """
+    Extract size, max_price, and plain text description from a natural language query.
+    Uses regular expressions to isolate dollar limits and size tokens.
+    """
+    text = query.lower()
+    
+    # Extract max_price (e.g. "under $30", "$30", "under 30 dollars")
+    max_price = None
+    price_match = re.search(r'(?:under|\$)\s*(\d+(?:\.\d+)?)', text)
+    if price_match:
+        max_price = float(price_match.group(1))
+
+    # Extract common size tokens
+    size = None
+    size_match = re.search(r'\b(xxs|xs|s|m|l|xl|xxl|w\d+\s*l\d+|us\s*\d+(?:\.\d+)?)\b', text)
+    if size_match:
+        size = size_match.group(1).upper()
+
+    # Clean description by stripping price and size phrases
+    clean_desc = query
+    if price_match:
+        clean_desc = re.sub(r'(?:under\s*)?\$?\s*\d+(?:\.\d+)?(?:\s*dollars)?', '', clean_desc, flags=re.IGNORECASE)
+    if size_match:
+        clean_desc = re.sub(r'\b(?:size\s*)?' + re.escape(size_match.group(0)) + r'\b', '', clean_desc, flags=re.IGNORECASE)
+    
+    # Strip common query filler words
+    clean_desc = re.sub(r'\b(looking for|find|search|under|size|a|an|the)\b', '', clean_desc, flags=re.IGNORECASE)
+    clean_desc = re.sub(r'\s+', ' ', clean_desc).strip()
+
+    return {
+        "description": clean_desc or query,
+        "size": size,
+        "max_price": max_price,
+    }
+
+
 # ── planning loop ─────────────────────────────────────────────────────────────
 
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
     Run the loop once and return the finished session.
-
-    Args:
-        query:    what the user asked for, in plain language
-                  (e.g. "vintage graphic tee under $30, size M").
-        wardrobe: a wardrobe dict — get_example_wardrobe() or
-                  get_empty_wardrobe() from utils/data_loader.py.
-
-    Returns:
-        The session dict. **Check session["error"] first** — if it isn't None,
-        the run ended early and the later fields will still be None.
-
-    ─────────────────────────────────────────────────────────────────────────
-    TODO — build this, following the branch rule you wrote in Milestone 2.
-
-      1. Start a session with new_session().
-
-      2. Count the times round the loop, and call trace.check_iterations(count)
-         on each one before you go again. It raises when the count passes
-         MAX_ITERATIONS in config.py — see trace.py.
-
-      3. Parse the query into a description, a size, and a max_price. Regex,
-         string splitting, or asking the model are all fine — say which you
-         chose in your README. Put the result in session["parsed"].
-
-      4. Call search_listings() with what you parsed.
-         Put the results in session["search_results"].
-
-         ⚠️ THIS IS THE BRANCH. If nothing came back:
-              - put a message in session["error"] saying what the user could
-                change — "No results" is not that message
-              - return the session
-              - do NOT call suggest_outfit with nothing
-
-      5. Choose an item — the first result is fine. Put it in
-         session["selected_item"].
-
-      6. Call suggest_outfit() with the selected item and the wardrobe.
-         Put the result in session["outfit_suggestion"].
-
-      7. Call create_fit_card() with the outfit and the item.
-         Put the result in session["fit_card"].
-
-      8. Return the session.
-
-    ─────────────────────────────────────────────────────────────────────────
-    IN UNIT 4 you come back and add two things:
-
-      • Trace calls. One per step. `trace.step("search_listings", inputs=...,
-        returned=...)` — see trace.py. Your README needs the output.
-
-      • A handler for ModelUnavailable, so a bad key produces a message rather
-        than a stack trace. The import is already at the top of this file.
     """
     session = new_session(query, wardrobe)
+    iteration_count = 0
 
-    # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
+    # Iteration check 1
+    iteration_count += 1
+    trace.check_iterations(iteration_count)
+
+    # Step 1: Parse the user query and store in session
+    parsed = _parse_query(session["query"])
+    session["parsed"] = parsed
+
+    # Step 2: Search listings using parsed parameters
+    search_results = search_listings(
+        description=session["parsed"].get("description", ""),
+        size=session["parsed"].get("size"),
+        max_price=session["parsed"].get("max_price"),
+    )
+    session["search_results"] = search_results
+
+    # ⚠️ THE BRANCH: If no listings match, stop and set helpful error message
+    if not session["search_results"]:
+        filters = []
+        if session["parsed"].get("max_price") is not None:
+            filters.append(f"price ceiling (${session['parsed']['max_price']:.2f})")
+        if session["parsed"].get("size"):
+            filters.append(f"size '{session['parsed']['size']}'")
+        if session["parsed"].get("description"):
+            filters.append(f"keywords '{session['parsed']['description']}'")
+
+        filter_str = " or ".join(filters) if filters else "search terms"
+        session["error"] = (
+            f"No matching listings were found. Try adjusting your {filter_str} "
+            "to broaden the search."
+        )
+        return session
+
+    # Iteration check 2
+    iteration_count += 1
+    trace.check_iterations(iteration_count)
+
+    # Step 3: Select the top match from search results in session
+    session["selected_item"] = session["search_results"][0]
+
+    # Step 4: Suggest an outfit using the selected item from session
+    selected_item = session["selected_item"]
+    user_wardrobe = session["wardrobe"]
+    outfit_suggestion = suggest_outfit(new_item=selected_item, wardrobe=user_wardrobe)
+    session["outfit_suggestion"] = outfit_suggestion
+
+    # Iteration check 3
+    iteration_count += 1
+    trace.check_iterations(iteration_count)
+
+    # Step 5: Create a fit card using the outfit suggestion from session
+    outfit = session["outfit_suggestion"]
+    fit_card = create_fit_card(outfit=outfit, new_item=session["selected_item"])
+    session["fit_card"] = fit_card
+
     return session
 
 
@@ -130,16 +165,22 @@ if __name__ == "__main__":
     from utils.data_loader import get_example_wardrobe
 
     print("=== A query the data can match ===")
-    _show(run_agent(
+    happy_session = run_agent(
         query="looking for a vintage graphic tee under $30",
         wardrobe=get_example_wardrobe(),
-    ))
+    )
+    _show(happy_session)
+    print("\n--- Full Happy Path Session Dump ---")
+    print(happy_session)
 
     print("\n=== A query it can't ===")
-    _show(run_agent(
+    empty_session = run_agent(
         query="designer ballgown size XXS under $5",
         wardrobe=get_example_wardrobe(),
-    ))
+    )
+    _show(empty_session)
+    print("\n--- Full Empty Path Session Dump ---")
+    print(empty_session)
 
     print(
         "\nThe second one should stop before the fit card. If both paths look "
