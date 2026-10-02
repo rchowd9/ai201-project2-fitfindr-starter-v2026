@@ -39,6 +39,8 @@
 
 ## What This Does
 
+FitFindr is an intelligent thrift and second-hand fashion assistant that helps users discover listings, assemble curated outfits from their personal wardrobes, and generate social media-ready caption cards. When a user submits a natural language search query, the agent parses out size and price constraints, filters available online marketplace listings, pairs the top match with complementary items they already own, and formats a polished style summary. If no listings match the criteria, it gracefully halts and explains what filter needs adjustment.
+
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
 
@@ -128,7 +130,7 @@ $ python -c "from tools import search_listings; print(search_listings('graphic t
 [{'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee with faded graphic. Slightly boxyfit. 100% cotton, soft and worn-in.', 'category': 'tops', 'style_tags': ['graphic tee', 'vintage', 'grunge', 'streetwear', 'band tee'], 'size': 'L', 'condition': 'good', 'price': 24.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_002', 'title': 'Y2K Baby Tee — Butterfly Print', 'description': 'Super cute early 2000s baby tee with butterfly graphic. Fitted crop length. Tag says medium but fits like a small.', 'category': 'tops', 'style_tags': ['y2k', 'vintage', 'graphic tee', 'cottagecore'], 'size': 'S/M', 'condition': 'excellent', 'price': 18.0, 'colors': ['white', 'pink', 'purple'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_033', 'title': 'Vintage Band Tee — Faded Grey', 'description': 'Faded grey band-style tee with distressed graphic. Crew neck. Fits boxy. Well-loved but no holes or major damage.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'band tee', 'graphic tee', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 19.0, 'colors': ['grey', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_015', 'title': 'Vintage Graphic Hoodie — Faded Black', 'description': 'Faded black pullover hoodie with barely-visible vintage graphic on the chest. Cozy interior. Some pilling but adds to the worn-in look.', 'category': 'tops', 'style_tags': ['vintage', 'grunge', 'graphic', 'streetwear'], 'size': 'L', 'condition': 'fair', 'price': 26.0, 'colors': ['black', 'charcoal'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_017', 'title': 'Mesh Long-Sleeve Top — Black', 'description': 'Sheer black mesh long-sleeve. Great for layering under a graphic tee or over a bralette. Stretchy material, fits true to size.', 'category': 'tops', 'style_tags': ['y2k', 'grunge', 'goth', 'layering'], 'size': 'S/M', 'condition': 'excellent', 'price': 15.0, 'colors': ['black'], 'brand': None, 'platform': 'depop'}, {'id': 'lst_011', 'title': 'Low-Rise Cargo Pants — Khaki', 'description': 'Y2K era low-rise cargo pants. Lots of pockets. Khaki color, slightly distressed at the hems. Great for layering with a long tee.', 'category': 'bottoms', 'style_tags': ['y2k', 'cargo', '2000s', 'streetwear'], 'size': 'W29', 'condition': 'fair', 'price': 27.0, 'colors': ['khaki', 'tan'], 'brand': None, 'platform': 'poshmark'}, {'id': 'lst_012', 'title': 'Oversized Crewneck Sweatshirt — Vintage Navy', 'description': 'Perfectly faded navy crewneck. Genuinely vintage — not manufactured distressed. Ribbed cuffs andhem. No graphics, clean.', 'category': 'tops', 'style_tags': ['vintage', 'basics', 'oversized', 'classic'], 'size': 'XL (fits oversized)', 'condition': 'good', 'price': 20.0, 'colors': ['navy'], 'brand': None, 'platform': 'thredUp'}]
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ python -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
 
 ```
 Hey there! Those vintage Levi's 501s are an absolute closet staple, and since you already have some great basics, you can build some killer looks right away. 
@@ -140,7 +142,7 @@ Outfit Two:
 Wear the vintage Levi's 501 jeans with the oversized grey crewneck sweatshirt pulled over a layered look, slip on the black combat boots, and grab your black crossbody bag. This outfit works because the slouchy grey sweatshirt contrasts nicely with the structured, straight-cut vintage denim for an effortlessly cool streetwear feel.
 
 ```
-$ python -c "from tools import create_fit_card; ..."
+$ python -c "from tools import create_fit_card; from utils.data_loader import load_listings; print(create_fit_card('jeans and white sneakers', load_listings()[0]))"
 
 ```
 scored these vintage levi's 501s on depop for just $38 and the wash is literally everything. paired them with my favorite white sneakers for that effortless 90s streetwear vibe. never taking these off 👖✨
@@ -158,15 +160,15 @@ scored these vintage levi's 501s on depop for just $38 and the wash is literally
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I gave the AI my search_listings size tokenization logic to ensure it cleanly handled compound and formatted sizes like "S/M" or "W30 L30".
+- *What came back:* It returned a substring check ("s" in size), which would have incorrectly flagged items like "US 9" or "XL".
+- *What I changed:* I replaced it with a regex token extraction method (_size_tokens) that parses exact token boundaries so sizes match precisely without false positives.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked the AI to write the initial prompt structure for suggest_outfit when a user has an empty wardrobe.
+- *What came back:* It returned a prompt that assumed user wardrobe items existed and threw a KeyError on wardrobe['items'].
+- *What I changed:* I added a conditional safety guard to check if wardrobe['items'] is empty or missing, falling back to general styling advice using common closet staples instead of failing.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
