@@ -67,23 +67,46 @@ from tools import search_listings as _search_listings_impl  # noqa: F401 — you
 mcp = FastMCP("fitfindr", log_level="WARNING")
 
 
-# ── TODO: uncomment and fill this in ──────────────────────────────────────────
-#
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
-#
+@mcp.tool()
+def search_listings(
+    description: str,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    Search a catalogue of secondhand clothing listings for items matching a
+    free-text description, optionally narrowed to one size and a price ceiling.
+
+    Args:
+        description: Required. Free-text keywords describing the wanted item,
+            e.g. "vintage graphic tee" or "black leather boots". Results are
+            ranked by weighted keyword overlap against each listing's title,
+            style tags, category, colors, brand and description, best match
+            first. Listings matching none of the keywords are not returned.
+        size: Optional. A single size string, e.g. "M", "XL", "W30", "US 9" or
+            "One Size". Matched case-insensitively on whole size tokens, so
+            "M" matches a listing sized "S/M", but "S" does NOT match "US 9"
+            and "L" does NOT match "XL". Omit or pass null to skip size
+            filtering.
+        max_price: Optional. Price ceiling in US dollars, inclusive — a
+            max_price of 30 keeps a listing priced exactly 30.00. Omit or pass
+            null to skip price filtering.
+
+    Returns:
+        A list of at most 10 listing objects, best match first. Each listing
+        has: id (string), title (string), description (string), category
+        (string), style_tags (array of strings), size (string), condition
+        (string), price (number, US dollars), colors (array of strings),
+        brand (string or null — null for most listings, which is normal for
+        thrift stock), and platform (string, the marketplace it is listed on).
+
+        Returns an empty list when nothing matches the keywords or survives
+        the size and price filters. An empty list is a normal, successful
+        result, not an error.
+    """
+    return _search_listings_impl(description, size, max_price)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 #
 # Two notes on the block above.

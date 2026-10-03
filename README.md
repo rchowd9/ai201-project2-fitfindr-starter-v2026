@@ -61,24 +61,24 @@ FitFindr is an intelligent thrift and second-hand fashion assistant that helps u
 
 ### `search_listings`
 
-- **What it does:** Filters available marketplace items based on criteria like price ceiling, size, and category.
-- **Inputs:** query (str), category (str), max_price (float), size (str), condition (str), brand (str), platform (str), style_tags (list of str), colors (list of str)
-- **Returns:** A list of listing dicts, each with id, title, description, category, style_tags, size, condition, price, colors, brand, and platform.
-- **When it has nothing:** An empty list.
+- **What it does:** Searches the thrift listings data for items matching free-text keywords, and optionally narrows them to a single size and a price ceiling. Pure data — it does not call the model.
+- **Inputs:** `description` (str, required — keywords such as "vintage graphic tee"); `size` (str or None, optional — a size string such as "M", "W30" or "US 9"; matched case-insensitively on whole size tokens, so "M" matches "S/M" but "S" does not match "US 9" and "L" does not match "XL"); `max_price` (float or None, optional — maximum price in dollars, inclusive).
+- **Returns:** A list of listing dicts, best match first, at most `config.SEARCH_RESULT_LIMIT` (10) of them. Each dict has `id` (str), `title` (str), `description` (str), `category` (str), `style_tags` (list of str), `size` (str), `condition` (str), `price` (float), `colors` (list of str), `brand` (str or None — None for most listings), `platform` (str). Ranking is a weighted keyword-overlap score (title 3, style_tags/category/colors 2, brand/description 1); listings scoring zero are dropped.
+- **When it has nothing:** An empty list `[]` — not None, not an exception. This is what the loop branches on.
 
 ### `suggest_outfit`
 
-- **What it does:** Pairs a selected marketplace item with complementary pieces from the user's wardrobe.
-- **Inputs:** listing_id (str), target_category (str), style_tags (list of str), colors (list of str)
-- **Returns:** An outfit dict with listing (listing dict), matched_wardrobe_items (list of wardrobe item dicts, each with id, name, category, colors, style_tags, notes), and pairing_rationale (str).
-- **When it has nothing:** An empty list.
+- **What it does:** Asks the model for one or two outfits built around a thrifted item, naming pieces from the user's wardrobe where it has one.
+- **Inputs:** `new_item` (dict — one listing dict as returned by `search_listings`); `wardrobe` (dict with an `items` key holding a list of wardrobe item dicts, each with `name`, `category`, `colors`, `style_tags`, `notes`; the list may be empty).
+- **Returns:** A non-empty str of plain-text outfit suggestions, under about 150 words, describing one or two outfits and the vibe of each.
+- **When it has nothing:** Never empty and never raises. With an empty wardrobe it returns general styling advice built on common staples instead of named owned pieces; if the model returns nothing at all, it returns a plain fallback sentence naming the item.
 
 ### `create_fit_card`
 
-- **What it does:** Formats an assembled outfit into a structured visual card layout with pricing and styling details.
-- **Inputs:** outfit_data (dict), include_price (bool)
-- **Returns:** A card dict containing card_title (str), item_summary (str), total_price (float), platform_link (str), and styling_notes (str).
-- **When it has nothing:** An error string.
+- **What it does:** Asks the model for a short social-media caption about the find, in first person, from the item and the outfit it is being styled with.
+- **Inputs:** `outfit` (str — the suggestion string from `suggest_outfit`); `new_item` (dict — the listing dict for the item).
+- **Returns:** A non-empty str: a 2–4 sentence caption mentioning the item, its price and its platform exactly once each.
+- **When it has nothing:** If `outfit` is empty or whitespace-only it returns a descriptive message saying there was no outfit to caption, rather than raising; if the model returns nothing, it returns a plain fallback caption.
 
 ---
 
