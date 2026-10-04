@@ -14,7 +14,6 @@ Build and test your three tools in `tools.py` first. Then come here.
 """
 
 import re
-import config
 import trace
 from tools import suggest_outfit, create_fit_card
 from mcp_client import call_tool
@@ -97,15 +96,27 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     # Step 1: Parse the user query and store in session
     parsed = _parse_query(session["query"])
     session["parsed"] = parsed
+    trace.step(
+        "parse_query",
+        inputs={"query": session["query"]},
+        returned=parsed,
+    )
 
     # Step 2: Search listings over MCP rather than by direct call. Same tool,
     # same return value — a list of listing dicts, or [] when nothing matches.
-    search_results = call_tool("search_listings", {
+    search_inputs = {
         "description": session["parsed"].get("description", ""),
         "size": session["parsed"].get("size"),
         "max_price": session["parsed"].get("max_price"),
-    })
+    }
+    search_results = call_tool("search_listings", search_inputs)
     session["search_results"] = search_results
+    trace.step(
+        "search_listings (via MCP)",
+        inputs=search_inputs,
+        returned=search_results,
+        note="branch: no listings, stopping" if not search_results else "",
+    )
 
     # ⚠️ THE BRANCH: If no listings match, stop and set helpful error message
     if not session["search_results"]:
@@ -130,12 +141,37 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     # Step 3: Select the top match from search results in session
     session["selected_item"] = session["search_results"][0]
+    trace.step(
+        "select_listing",
+        inputs={"search_results": session["search_results"]},
+        returned=session["selected_item"],
+    )
 
     # Step 4: Suggest an outfit using the selected item from session
     selected_item = session["selected_item"]
     user_wardrobe = session["wardrobe"]
-    outfit_suggestion = suggest_outfit(new_item=selected_item, wardrobe=user_wardrobe)
+    outfit_inputs = {"new_item": selected_item, "wardrobe": user_wardrobe}
+    try:
+        outfit_suggestion = suggest_outfit(
+            new_item=selected_item, wardrobe=user_wardrobe
+        )
+    except ModelUnavailable as exc:
+        session["error"] = (
+            f"The model couldn't be reached while generating outfit advice. {exc}"
+        )
+        trace.step(
+            "suggest_outfit",
+            inputs=outfit_inputs,
+            returned=session["error"],
+            note="stopping: model unavailable",
+        )
+        return session
     session["outfit_suggestion"] = outfit_suggestion
+    trace.step(
+        "suggest_outfit",
+        inputs=outfit_inputs,
+        returned=outfit_suggestion,
+    )
 
     # Iteration check 3
     iteration_count += 1
@@ -143,8 +179,28 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     # Step 5: Create a fit card using the outfit suggestion from session
     outfit = session["outfit_suggestion"]
-    fit_card = create_fit_card(outfit=outfit, new_item=session["selected_item"])
+    fit_card_inputs = {"outfit": outfit, "new_item": session["selected_item"]}
+    try:
+        fit_card = create_fit_card(
+            outfit=outfit, new_item=session["selected_item"]
+        )
+    except ModelUnavailable as exc:
+        session["error"] = (
+            f"The model couldn't be reached while writing the fit card. {exc}"
+        )
+        trace.step(
+            "create_fit_card",
+            inputs=fit_card_inputs,
+            returned=session["error"],
+            note="stopping: model unavailable",
+        )
+        return session
     session["fit_card"] = fit_card
+    trace.step(
+        "create_fit_card",
+        inputs=fit_card_inputs,
+        returned=fit_card,
+    )
 
     return session
 

@@ -84,8 +84,16 @@ def _short(value, limit: int = 110) -> str:
     if isinstance(value, dict):
         if "title" in value:
             return f"{value.get('title')} (${value.get('price')}, {value.get('platform')})"
-        keys = ", ".join(list(value)[:6])
-        return f"dict with keys: {keys}"
+        if isinstance(value.get("items"), list):
+            items = value["items"]
+            names = ", ".join(
+                str(item.get("name", "Unnamed item")) for item in items[:3]
+                if isinstance(item, dict)
+            )
+            more = f" … +{len(items) - 3} more" if len(items) > 3 else ""
+            return f"wardrobe with {len(items)} items: {names}{more}"
+        text = str(value)
+        return text if len(text) <= limit else text[:limit] + "…"
 
     text = str(value).replace("\n", " ")
     return text if len(text) <= limit else text[:limit] + "…"

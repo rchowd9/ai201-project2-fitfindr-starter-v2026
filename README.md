@@ -252,13 +252,33 @@ that produced it:
 **Happy path**
 
 ```
-
+[1] parse_query
+      in:  {'query': '90s track jacket in size M'}
+      out: {'description': '90s track jacket in', 'size': 'M', 'max_price': None}
+[2] search_listings (via MCP)
+      in:  {'description': '90s track jacket in', 'size': 'M', 'max_price': None}
+      out: 4 items: 90s Track Jacket — Navy/White Stripe, 90s Leather Bomber — Black, 90s Silk Slip Dress — Floral, Midi Length … +1 more
+[3] select_listing
+      in:  {'search_results': [{'id': 'lst_004', 'title': '90s Track Jacket — Navy/White Stripe', 'description': 'Authentic 90s …'}
+      out: 90s Track Jacket — Navy/White Stripe ($45.0, poshmark)
+[4] suggest_outfit
+      in:  {'new_item': {'id': 'lst_004', 'title': '90s Track Jacket — Navy/White Stripe', 'description': 'Authentic 90s …'}
+      out: Hey there! That 90s Champion track jacket is such a versatile find, and you are definitely going to want to scoop it up. Here are two easy, everyday outfits you can make right out of your current closet: …
+[5] create_fit_card
+      in:  {'outfit': 'Hey there! That 90s Champion track jacket is such a versatile find, and you are definitely going t…
+      out: scored this 90s champion track jacket on poshmark for only $45 and it is literally the ultimate sporty layerin…
 ```
 
 **Empty search**
 
 ```
-
+[1] parse_query
+      in:  {'query': 'designer ballgown size XXS under $5'}
+      out: {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'designer ballgown', 'size': 'XXS', 'max_price': 5.0}
+      out: [] (empty)
+      →    branch: no listings, stopping
 ```
 
 **On the MCP move:** <!-- what changed in your code, and whether anything
@@ -266,7 +286,48 @@ behaved differently afterwards. If the rewire didn't work, say exactly where it
 broke — the error text and the last thing that worked. That earns the point in
 full. -->
 
+`run_agent()` calls `search_listings` through `call_tool()` in `mcp_client.py`.
+The MCP result is still a list of listing dictionaries, so the same empty-list
+branch and first-result selection work after the move.
 
+### Failure Checks
+
+**Empty search** — `python app.py ask 'designer ballgown size XXS under $5'`
+
+> No matching listings were found. Try adjusting your price ceiling ($5.00) or
+> size 'XXS' or keywords 'designer ballgown' to broaden the search.
+
+**Empty wardrobe** — `python app.py ask 'vintage graphic tee under $30' --empty-wardrobe`
+
+> Hey there! That 2003 tour tee is an absolute score. Since it has that cool,
+> worn-in boxy fit, here are two easy, everyday ways to style it.
+>
+> **Outfit One: The 90s Downtown Look**
+> Pair the graphic tee with high-waisted straight-leg blue jeans and a black
+> leather belt. Tuck the front of the tee in slightly. Finish it off with black
+> Converse high-tops and a simple silver chain necklace. This gives off a
+> classic, effortless grunge vibe that works for coffee runs or a casual gig.
+>
+> **Outfit Two: Streetwear Casual**
+> Layer the tee over a fitted white long-sleeve crewneck so the sleeves peek
+> out. Wear it with relaxed-fit black cargo pants and chunky white sneakers.
+> Add a black baseball cap. This leans into a sporty streetwear vibe while
+> keeping you super comfortable all day long.
+>
+> You will definitely get a ton of wear out of this piece!
+>
+> It returned a fit card too; the empty wardrobe caused no crash and no empty
+> string.
+
+**Model unavailable** — with one API-key character temporarily changed, a new
+matched query reported:
+
+> The model couldn't be reached while generating outfit advice. The model
+> rejected your API key. Check GEMINI_API_KEY in your .env file, or create a
+> fresh key at aistudio.google.com.
+
+The CLI returned normally without a stack trace. The original `.env` contents
+were restored immediately after the check.
 
 ---
 
