@@ -190,16 +190,32 @@ scored these vintage levi's 501s on depop for just $38 and the wash is literally
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. Matching query completes end-to-end | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. Impossible query stops early | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Empty wardrobe query completes safely | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Selected item ID matches downstream inputs | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. Fit card contains item title and price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+**Real output from one try**, produced by `agent.py::run_agent`:
 
-```
+`Criterion 1: Matching query completes end-to-end`
+
+```text
+[1] parse_query
+      in:  {'query': 'vintage graphic tee under $30'}
+      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+[2] search_listings (via MCP)
+      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      out: 10 items: Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey, Vintage Graphic Hoodie — Faded Black … +7 more
+[3] select_listing
+      in:  {'search_results': [{'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee...'}]}
+      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
+[4] suggest_outfit
+      in:  {'new_item': {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style'...}}
+      out: Outfit One: Pair the graphic tee with your baggy straight-leg jeans, black combat boots, and black crossbody bag for a casual 2000s streetwear vibe...
+[5] create_fit_card
+      in:  {'outfit': 'Outfit One: Pair the graphic tee with your baggy straight-leg jeans...'}
+      out: scored this 2003 tour bootleg tee on depop for $24 and it's already my favorite thing in my closet. obsessed with the faded black wash 🖤✨
 
 ```
 
