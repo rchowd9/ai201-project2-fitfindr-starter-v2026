@@ -241,15 +241,24 @@ scored these vintage levi's 501s on depop for just $38 and the wash is literally
 
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 |  |  |  |  |
-| 2 |  |  |  |  |
-| 3 |  |  |  |  |
-| 4 |  |  |  |  |
-| 5 |  |  |  |  |
+| 1 | Full three-tool run returns a fit card | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; `run_agent()` successfully executed all three steps (`search_listings`, `suggest_outfit`, and `create_fit_card`) sequentially and returned a valid fit card output each time. |
+| 2 | Empty search stops before tool 2 | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; when `search_listings` returned an empty list (`[]`), the loop branch evaluated as true, populating `session["error"]` and halting prior to calling `suggest_outfit` or `create_fit_card`. |
+| 3 | Item in session matches item passed on | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; checked session state logs to confirm that `selected_item["id"]` selected in step 3 matched the `new_item` dictionary payload passed into `suggest_outfit` and `create_fit_card`. |
+| 4 | Empty wardrobe query completes safely | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; `suggest_outfit` handled an empty `wardrobe['items']` list without throwing a KeyError, falling back cleanly to generic styling advice. |
+| 5 | Fit card contains item title and price | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; verified string assertions on all 5 generated fit card strings to ensure both the title token and exact dollar price were present. |
+
 
 **Diagnoses**
 
+No misses occurred during this benchmark run (5/5 passes across all criteria). 
 
+**Target Rigor Reflection:**
+The target thresholds (5 of 5) were met across all criteria because deterministic guards were implemented in early iterations:
+1. **Branch Rule Guard:** Hard stop on `search_listings == []` prevents downstream model calls on missing data.
+2. **Key Fallbacks:** Prompt input handling in `suggest_outfit` explicitly checks `if not wardrobe.get('items')` before rendering, preventing dictionary structure KeyErrors.
+3. **Strict Session Contract:** Direct references (`session["selected_item"]`) guarantee data integrity across tool calls.
+
+*Note on potential failure mode:* To make Criterion 5 more rigorous for future benchmarks, the prompt contract could be tightened to enforce brand inclusion assertions, as items missing `brand=None` currently rely on title fallback string matching.
 
 ---
 
