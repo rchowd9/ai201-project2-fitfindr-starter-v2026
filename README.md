@@ -170,6 +170,14 @@ scored these vintage levi's 501s on depop for just $38 and the wash is literally
 - *What came back:* It returned a prompt that assumed user wardrobe items existed and threw a KeyError on wardrobe['items'].
 - *What I changed:* I added a conditional safety guard to check if wardrobe['items'] is empty or missing, falling back to general styling advice using common closet staples instead of failing.
 
+**Moment 3**
+
+What I asked for: I asked how to wire search_listings into mcp_server.py using FastMCP while keeping the return type strictly JSON-serializable.
+
+What came back: The suggested snippet returned custom object instances, which threw a serialization error when sent over the MCP protocol transport.
+
+What I changed: I explicitly formatted the tool output to return a list of standard Python dict objects ([listing.to_dict() for listing in results]) so FastMCP could serialize the payload cleanly.
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
