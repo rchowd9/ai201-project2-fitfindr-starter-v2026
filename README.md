@@ -172,11 +172,19 @@ scored these vintage levi's 501s on depop for just $38 and the wash is literally
 
 **Moment 3**
 
-What I asked for: I asked how to wire search_listings into mcp_server.py using FastMCP while keeping the return type strictly JSON-serializable.
+- *What I asked for:* I asked how to wire search_listings into mcp_server.py using FastMCP while keeping the return type strictly JSON-serializable.
 
-What came back: The suggested snippet returned custom object instances, which threw a serialization error when sent over the MCP protocol transport.
+- *What came back:* The suggested snippet returned custom object instances, which threw a serialization error when sent over the MCP protocol transport.
 
-What I changed: I explicitly formatted the tool output to return a list of standard Python dict objects ([listing.to_dict() for listing in results]) so FastMCP could serialize the payload cleanly.
+- *What I changed:* I explicitly formatted the tool output to return a list of standard Python dict objects ([listing.to_dict() for listing in results]) so FastMCP could serialize the payload cleanly.
+
+**Moment 4**
+
+- *What I asked for:* I gave the AI my regex size tokenization logic to ensure it cleanly handled compound sizes like "S/M" or jeans sizes like "W30 L30".
+
+- *What came back:* It returned a substring check ("s" in size), which would have incorrectly flagged items like "US 9" or "XL".
+
+- *What I changed:* I replaced it with a regex token extraction function (_size_tokens) that checks exact token boundaries so sizes match precisely without false positives.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -332,6 +340,11 @@ full. -->
 `run_agent()` calls `search_listings` through `call_tool()` in `mcp_client.py`.
 The MCP result is still a list of listing dictionaries, so the same empty-list
 branch and first-result selection work after the move.
+
+To move search_listings to MCP, I created mcp_server.py using FastMCP and registered search_listings as an MCP tool. In agent.py, instead of calling search_listings directly as a local Python import, I updated run_agent() to invoke it via mcp_client.call_tool("search_listings", arguments=...).
+
+Functionally, the agent's behavior did not change: search_listings still returns a list of listing dictionaries, and the empty-search branch (if not search_results:) continues to catch empty returns and halt execution as expected.
+
 
 ### Failure Checks
 
