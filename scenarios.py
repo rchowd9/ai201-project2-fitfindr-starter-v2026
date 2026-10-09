@@ -35,18 +35,41 @@ SCENARIOS = [
         "wardrobe": "empty",
         "criterion": None,
     },
-    # TODO: add what your criteria 3, 4 and 5 need.
-    #
-    # Set "criterion" to the number in criteria.md that the scenario tests.
-    # "criterion": None means a diagnostic run — useful to have, but it isn't
-    # one of your five, and run_eval.py marks it as such in the table.
-    #
-    # For a state criterion, any normal query works — what you're checking is
-    # what ends up in the session, not what the user typed.
-    #
-    # For a fit-card criterion, you probably want the SAME query listed more
-    # than once, or several different items, depending on what your criterion
-    # actually says.
+    {
+        # Criterion 3 — state. Any normal query works; what's being checked is
+        # that the id in session["selected_item"] is the id that reaches
+        # suggest_outfit, which the trace prints on the suggest_outfit step.
+        "name": "selected item survives into suggest_outfit",
+        "query": "90s track jacket in size M",
+        "wardrobe": "example",
+        "criterion": 3,
+    },
+    {
+        # Criterion 4 — the fit card. The same query five times, because the
+        # criterion is about what stays constant across runs that differ in
+        # wording: title, price and platform.
+        "name": "fit card keeps the key facts across runs",
+        "query": "90s leather bomber jacket",
+        "wardrobe": "example",
+        "criterion": 4,
+    },
+    {
+        # Criterion 5 — the price ceiling. A tight ceiling, so a listing that
+        # slipped past the filter would be visible in the results.
+        "name": "price ceiling holds",
+        "query": "vintage tee under $20",
+        "wardrobe": "example",
+        "criterion": 5,
+    },
+    {
+        # Diagnostic. The data holds lst_001, "Vintage Levi's 501 Jeans", so
+        # this query is matchable. If the agent stops early here, the stop is
+        # a false empty and the cause is upstream of the branch.
+        "name": "possessive in the query (false empty)",
+        "query": "looking for levi's 501s",
+        "wardrobe": "example",
+        "criterion": None,
+    },
 ]
 
 WARDROBES = ("example", "empty")

@@ -56,9 +56,20 @@ def _parse_query(query: str) -> dict:
     if price_match:
         max_price = float(price_match.group(1))
 
-    # Extract common size tokens
+    # Extract common size tokens.
+    #
+    # The lookbehind is the point of this line. \b treats an apostrophe as a
+    # word boundary, so without it the trailing s of a possessive reads as
+    # size S: "looking for levi's 501s" parsed to size='S', search filtered to
+    # S-sized items, found none, and the loop reported that nothing matched —
+    # while lst_001 "Vintage Levi's 501 Jeans" sat in the data at W30 L30.
+    # Refusing a size token that directly follows an apostrophe leaves real
+    # size mentions ("size M", "US 9", "W30 L30") untouched.
     size = None
-    size_match = re.search(r'\b(xxs|xs|s|m|l|xl|xxl|w\d+\s*l\d+|us\s*\d+(?:\.\d+)?)\b', text)
+    size_match = re.search(
+        r"(?<!['’])\b(xxs|xs|s|m|l|xl|xxl|w\d+\s*l\d+|us\s*\d+(?:\.\d+)?)\b",
+        text,
+    )
     if size_match:
         size = size_match.group(1).upper()
 

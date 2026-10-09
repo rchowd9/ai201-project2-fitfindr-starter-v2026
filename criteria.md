@@ -91,6 +91,19 @@ Target: 4 of 5
 
 **Why this target:** I picked 4 of 5 because create_fit_card calls an LLM, and non-zero temperature generation occasionally leads to minor formatting drops or missing key fields on isolated runs.
 
+> **Revised in unit 4:** Given the same query run five times, each fit card
+> must name the listing title, the listing's price, the listing's platform,
+> and at least one piece from the outfit it was given. Target unchanged at
+> 4 of 5.
+>
+> **Why revised:** the original asked for "total price", and no total price
+> exists anywhere in the system — `create_fit_card(outfit: str, new_item:
+> dict)` receives one listing, so there is nothing to total. That clause was
+> unscoreable, not merely unmet. The rest of the original is unchanged,
+> including the target: scored against the measurable part the criterion was
+> still MISSED at 3/5, before and after, because two of five cards named no
+> wardrobe piece.
+
 
 
 ---

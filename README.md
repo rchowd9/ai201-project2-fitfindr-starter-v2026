@@ -179,86 +179,96 @@ scored these vintage levi's 501s on depop for just $38 and the wash is literally
 
 ## Run Log — Before
 
-<!-- Five criteria, five tries each, in this exact format.
-
-     Five, because your criteria are written out of five. Mark each try PASS
-     or FAIL, count the passes, and read that count against your target — a
-     row targeting 4 of 5 with three PASS cells is MISSED (3/5).
-
-     `python run_eval.py --label before` runs everything and writes the table
-     into results/. Paste it here and fill in the verdicts. -->
+Produced by `run_eval.py::main`, caching off, temperature 0.9, 5 tries per
+scenario — `results/run_2026-10-08_2138_before.md`.
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1. Matching query completes end-to-end | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 2. Impossible query stops early | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 3. Empty wardrobe query completes safely | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 4. Selected item ID matches downstream inputs | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
-| 5. Fit card contains item title and price | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item's id survives into `suggest_outfit` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card keeps the key facts across runs | 4 of 5 | PASS | FAIL | PASS | FAIL | PASS | **MISSED (3/5)** |
+| 5. Price ceiling is never exceeded | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| _(diagnostic)_ possessive in the query | — | FAIL | FAIL | FAIL | FAIL | FAIL | **false empty, 5/5** |
 
-**Real output from one try**, produced by `agent.py::run_agent`:
+**How each row was scored**
 
-`Criterion 1: Matching query completes end-to-end`
+- **1** — `session["fit_card"]` non-empty and `session["error"]` None, all five tries.
+- **2** — `search_results` 0, `selected_item` None, `fit_card` None, and the trace
+  stops at step 2 with `branch: no listings, stopping`.
+- **3** — the id on the `select_listing` step compared against the id on the
+  `suggest_outfit` step of the same trace: `lst_004` on both, five times.
+- **4** — the card has to carry the listing title, the price, the platform *and*
+  a wardrobe piece. Title/price/platform held 5/5; the wardrobe piece was
+  missing in tries 2 and 4, so 3/5 against a target of 4.
+- **5** — every price in `search_results`, not just the top one, checked against
+  the ceiling; also swept directly over `search_listings` at ceilings of
+  $12/$15/$20/$25/$30, 0 violations.
+
+**Real output from the diagnostic**, produced by `agent.py::run_agent`
+(the data holds `lst_001` "Vintage Levi's 501 Jeans", so this query is matchable):
 
 ```text
 [1] parse_query
-      in:  {'query': 'vintage graphic tee under $30'}
-      out: {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
+      in:  {'query': "looking for levi's 501s"}
+      out: {'description': "levi' 501s", 'size': 'S', 'max_price': None}
 [2] search_listings (via MCP)
-      in:  {'description': 'vintage graphic tee', 'size': None, 'max_price': 30.0}
-      out: 10 items: Graphic Tee — 2003 Tour Bootleg Style, Vintage Band Tee — Faded Grey, Vintage Graphic Hoodie — Faded Black … +7 more
-[3] select_listing
-      in:  {'search_results': [{'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style', 'description': 'Vintage-style bootleg tee...'}]}
-      out: Graphic Tee — 2003 Tour Bootleg Style ($24.0, depop)
-[4] suggest_outfit
-      in:  {'new_item': {'id': 'lst_006', 'title': 'Graphic Tee — 2003 Tour Bootleg Style'...}}
-      out: Outfit One: Pair the graphic tee with your baggy straight-leg jeans, black combat boots, and black crossbody bag for a casual 2000s streetwear vibe...
-[5] create_fit_card
-      in:  {'outfit': 'Outfit One: Pair the graphic tee with your baggy straight-leg jeans...'}
-      out: scored this 2003 tour bootleg tee on depop for $24 and it's already my favorite thing in my closet. obsessed with the faded black wash 🖤✨
+      in:  {'description': "levi' 501s", 'size': 'S', 'max_price': None}
+      out: [] (empty)
+      →    branch: no listings, stopping
 
+  stopped: No matching listings were found. Try adjusting your size 'S' or
+  keywords 'levi' 501s' to broaden the search.
+```
+
+**Criterion 5, checked directly against the tool:**
+
+```text
+max_price=20.0   n=8   prices=[12.0, 14.0, 15.0, 16.0, 18.0, 18.0, 19.0, 20.0] violations=0
+max_price=25.0   n=10  prices=[12.0, 16.0, 18.0, 18.0, 19.0, 20.0, 22.0, 24.0, 24.0, 25.0] violations=0
+max_price=15.0   n=3   prices=[12.0, 14.0, 15.0] violations=0
+max_price=30.0   n=10  prices=[12.0, 18.0, 18.0, 19.0, 20.0, 22.0, 24.0, 25.0, 26.0, 30.0] violations=0
+max_price=12.0   n=1   prices=[12.0] violations=0
 ```
 
 ---
 
 ## Verdicts and Diagnoses
 
-<!-- MET or MISSED per criterion against LAST UNIT's target, plus a sentence on
-     how you decided.
-
-     Then, for every miss: which of the four places it happened — a tool, the
-     loop's branch, the session, or the model's output — AND the mechanism.
-
-     Not a diagnosis:  "The fit card was bad."
-     A diagnosis:      "The fit card criterion missed on 2 of 5 items. Both had
-                        an empty brand field. My prompt puts the brand in the
-                        first sentence, so the card opened with a blank and read
-                        like a fragment. The tool worked; the prompt assumed a
-                        field that isn't always there."
-
-     Look for a pattern. Three misses on the same tool is one problem, not
-     three. -->
-
 | # | Criterion | Target | Verdict | How I decided |
 |---|---|---|---|---|
-| 1 | Full three-tool run returns a fit card | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; `run_agent()` successfully executed all three steps (`search_listings`, `suggest_outfit`, and `create_fit_card`) sequentially and returned a valid fit card output each time. |
-| 2 | Empty search stops before tool 2 | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; when `search_listings` returned an empty list (`[]`), the loop branch evaluated as true, populating `session["error"]` and halting prior to calling `suggest_outfit` or `create_fit_card`. |
-| 3 | Item in session matches item passed on | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; checked session state logs to confirm that `selected_item["id"]` selected in step 3 matched the `new_item` dictionary payload passed into `suggest_outfit` and `create_fit_card`. |
-| 4 | Empty wardrobe query completes safely | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; `suggest_outfit` handled an empty `wardrobe['items']` list without throwing a KeyError, falling back cleanly to generic styling advice. |
-| 5 | Fit card contains item title and price | 5 of 5 | MET (5/5) | Passed 5 out of 5 runs; verified string assertions on all 5 generated fit card strings to ensure both the title token and exact dollar price were present. |
-
+| 1 | Matching query completes all three tools | 4 of 5 | MET (5/5) | All five tries returned a non-empty `fit_card` with `error` None. |
+| 2 | Impossible query stops before tool 2 | 5 of 5 | MET (5/5) | `search_results` came back `[]` and the trace ends at step 2 every try; `suggest_outfit` was never reached. |
+| 3 | Selected item's id survives into `suggest_outfit` | 5 of 5 | MET (5/5) | `lst_004` on the `select_listing` step and `lst_004` on the `suggest_outfit` step, five times. |
+| 4 | Fit card keeps the key facts across runs | 4 of 5 | **MISSED (3/5)** | Title, price and platform appeared 5/5. The wardrobe piece did not: tries 2 and 4 named no owned item. |
+| 5 | Price ceiling is never exceeded | 5 of 5 | MET (5/5) | No listing above the ceiling in any result set, across five ceilings. |
 
 **Diagnoses**
 
-No misses occurred during this benchmark run (5/5 passes across all criteria). 
+**Miss on criterion 4 — the model's output, not the tool.** `create_fit_card`
+is given `outfit` as a string and asked for a caption "about this find". The
+prompt names the price and the platform explicitly and tells the model to use
+each exactly once, which is why those two never dropped. Nothing in the prompt
+asks the caption to name a piece the user already owns, so whether one appears
+is left to chance — and on 2 of 5 runs the model wrote a general caption about
+the jacket instead. The tool worked and returned a valid non-empty string every
+time; the prompt asked for less than the criterion does.
 
-**Target Rigor Reflection:**
-The target thresholds (5 of 5) were met across all criteria because deterministic guards were implemented in early iterations:
-1. **Branch Rule Guard:** Hard stop on `search_listings == []` prevents downstream model calls on missing data.
-2. **Key Fallbacks:** Prompt input handling in `suggest_outfit` explicitly checks `if not wardrobe.get('items')` before rendering, preventing dictionary structure KeyErrors.
-3. **Strict Session Contract:** Direct references (`session["selected_item"]`) guarantee data integrity across tool calls.
+**The diagnostic — the loop's parsing step, upstream of the branch.** This one
+is not one of the five, but it is the worst thing the run turned up, because
+the agent is confidently wrong rather than merely unhelpful. `_parse_query` in
+`agent.py` pulled sizes with
+`\b(xxs|xs|s|m|l|xl|xxl|w\d+\s*l\d+|us\s*\d+(?:\.\d+)?)\b`. `\b` counts an
+apostrophe as a word boundary, so the trailing `s` of a possessive is a
+standalone word to the regex: `"looking for levi's 501s"` parsed to
+`size='S'`. The search then filtered to S-sized items, `lst_001` "Vintage
+Levi's 501 Jeans" is `W30 L30`, nothing survived, and the branch fired
+correctly on a result set that should never have been empty. The same strip
+also chewed the description down to `levi' 501s`.
 
-*Note on potential failure mode:* To make Criterion 5 more rigorous for future benchmarks, the prompt contract could be tightened to enforce brand inclusion assertions, as items missing `brand=None` currently rely on title fallback string matching.
+So the branch is not at fault and neither is `search_listings` — both did
+exactly what their inputs said. The defect is one regex in the loop's parsing
+step, and it makes a matchable query look impossible. Five of five tries.
 
 ---
 
@@ -358,40 +368,117 @@ were restored immediately after the check.
 
 ## The Improvement
 
-<!-- What you changed, why your diagnosis pointed at it, and the after-run in
-     the same table format. One change, measured properly.
+**What I changed:** one regex in `agent.py::_parse_query`. The size pattern now
+refuses a size token that directly follows an apostrophe:
 
-     `python run_eval.py --label after` -->
+```python
+# before
+size_match = re.search(r'\b(xxs|xs|s|m|l|xl|xxl|w\d+\s*l\d+|us\s*\d+(?:\.\d+)?)\b', text)
 
-**What I changed:**
+# after
+size_match = re.search(
+    r"(?<!['’])\b(xxs|xs|s|m|l|xl|xxl|w\d+\s*l\d+|us\s*\d+(?:\.\d+)?)\b",
+    text,
+)
+```
 
-**Which failure it was meant to fix:**
+**Which failure it was meant to fix:** the false empty. `\b` treats an
+apostrophe as a word boundary, so the trailing `s` of a possessive read as
+size S, the search was filtered to a size the wanted item does not have, and
+the loop told the user nothing matched while the item sat in the data. The
+lookbehind is the narrowest thing that kills that: a real size mention is never
+preceded by an apostrophe, so `size M`, `US 9` and `W30 L30` are untouched.
+
+I did not touch the branch. The branch was reading its input correctly; the
+input was wrong.
 
 ### Run Log — After
 
+Produced by `run_eval.py::main`, caching off, temperature 0.9, 5 tries per
+scenario — `results/run_2026-10-08_2144_after.md`.
+
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. Selected item's id survives into `suggest_outfit` | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card keeps the key facts across runs | 4 of 5 | PASS | FAIL | FAIL | PASS | PASS | **MISSED (3/5)** |
+| 5. Price ceiling is never exceeded | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| _(diagnostic)_ possessive in the query | — | PASS | PASS | PASS | PASS | PASS | **fixed, 5/5** |
 
-**Did it help, and how do I know:**
+**Did it help, and how do I know:** yes, on the thing it was aimed at, and it moved nothing else.
 
-<!-- If it made things worse, say that. Honestly reported, that earns full
-     credit and is more interesting than one that worked. -->
+The diagnostic went from stopping early 5 of 5 to completing 5 of 5, and it now selects the right item:
 
+```text
+[1] parse_query
+      in:  {'query': "looking for levi's 501s"}
+      out: {'description': "levi's 501s", 'size': None, 'max_price': None}
+[2] search_listings (via MCP)
+      in:  {'description': "levi's 501s", 'size': None, 'max_price': None}
+      out: 3 items: Vintage Levi's 501 Jeans — Medium Wash, Baggy Carpenter Jeans — Dark Wash, …
+[3] select_listing
+      out: Vintage Levi's 501 Jeans — Medium Wash ($38.0, depop)
+```
 
+The description is also no longer corrupted — `levi's 501s`, where before the
+size strip had taken the `s` off and left `levi' 501s`.
+
+Nothing else changed. Criterion 2 still stops 5 of 5, so the fix did not make
+the agent credulous about genuinely impossible queries — `designer ballgown
+size XXS under $5` still parses to `size='XXS'` and still returns `[]`.
+Criteria 1, 3 and 5 held at 5/5. Ten queries parsed before and after give
+identical `size`, `description` and `max_price` on every one except the two
+possessive queries, which are the two that were broken.
+
+**What it did not help:** criterion 4, which missed 3/5 again — on different
+tries (2 and 3 this time rather than 2 and 4), which is what a temperature-0.9
+caption that is left free to mention a wardrobe piece or not should look like.
+The improvement was not aimed at it and it did not move. See below.
 
 ---
 
 ## What's Still Broken
 
-<!-- For each criterion still missed: what you'd do, and why you stopped where
-     you did. "I ran out of time" is fine if it's true. Pretending nothing is
-     left is not. -->
+**Criterion 4 — the fit card drops the wardrobe piece, 2 of 5 runs.** Still
+missed, before and after, because I spent the one improvement on the false
+empty instead. The diagnosis is in hand: `create_fit_card`'s prompt pins the
+price and the platform with "exactly once each" and those never drop, but it
+says nothing about naming an owned piece, so the model does it about three
+times in five. The fix is a one-line prompt change — tell it to name one piece
+from the outfit it was given — and it belongs in the same place the diagnosis
+points, `tools.py::create_fit_card`. I stopped because the rubric asks for one
+improvement measured properly, and two changes in one after-run would leave me
+unable to say which one moved what.
 
+Part of this criterion is also not measurable as written. It asks for "total
+price", and there is no total anywhere in the system — `create_fit_card`
+receives `outfit` as a string and `new_item` as one listing dict, so the only
+price that exists is the one item's. I have recorded a revision in
+`criteria.md` under the original line rather than editing it, and I scored the
+criterion against the measurable part. The 3/5 stands either way: the misses
+were the wardrobe piece, not the price.
+
+**Size filtering is skipped for bare waist sizes.** `_parse_query` matches
+`W30 L30` but not a bare `W30`, so "cargo pants W30" searches with `size=None`
+and can return a W27. Not one of my five criteria and no criterion caught it,
+which is itself worth noting — I found it by probing the parser by hand, not
+from the run log. Same regex, same function; I left it alone to keep the
+after-run attributable to one change.
+
+**The branch still cannot tell a true empty from a false one.** The fix
+removes one cause of a false empty; it does not give the loop any way to
+notice the next one. A second branch — on an empty result set, retry once with
+the most restrictive filter dropped before reporting failure — would catch the
+whole class rather than this instance, and it is what I would do next. It
+needs its own before/after to be worth anything, which is why it is not in
+this one.
+
+**The criteria themselves were untested until this unit.** Criteria 3, 4 and 5
+had no scenario behind them — `scenarios.py` still had the TODO — so the rows
+in an earlier draft of the Run Log table were not produced by a run. I added
+the three missing scenarios plus the diagnostic, and every row above now comes
+from a file in `results/`.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
